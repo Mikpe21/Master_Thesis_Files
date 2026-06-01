@@ -1,0 +1,182 @@
+clc;
+clear;
+close all;
+
+% =========================================================
+% MANUALLY ENTER DATA HERE
+% =========================================================
+
+% Time points (hours after confluency)
+t = [0 12 24];
+
+% ---------------------------------------------------------
+% Example datasets
+% Replace these values with your own
+% ---------------------------------------------------------
+
+OP_xy2 = [0.508 0.528 0.678];
+OP_xy3 = [0.525 0.583 0.651];
+OP_xy4 = [0.499 0.659 0.744];
+OP_xy5 = [0.525 0.636 0.695];
+
+OP_Q1 = [0.642 0.653 0.678];
+OP_Q2 = [0.578 0.636 0.712];
+OP_Q3 = [0.648 0.691 0.749];
+OP_Q4 = [0.672 0.719 0.779];
+
+OP_ramp1 = [0.765 0.745 0.722];
+OP_ramp2 = [0.724 0.719 0.908];
+OP_ramp4 = [0.758 0.733 0.865];
+
+% =========================================================
+% OPTIONAL: Combine into matrix
+% =========================================================
+
+OP_ST = [
+    OP_xy2;
+    OP_xy3;
+    OP_xy4;
+    OP_xy5
+];
+
+labels = {
+    'ST1'
+    'ST2'
+    'ST3'
+    'ST4'
+};
+
+OP_Q = [
+    OP_Q1;
+    OP_Q2;
+    OP_Q3;
+    OP_Q4
+];
+
+labels_Q = {
+    'Q1'
+    'Q2'
+    'Q3'
+    'Q4'
+};
+
+OP_ramp = [
+    OP_ramp1;
+    OP_ramp2;
+    OP_ramp4
+];
+
+labels_ramp = {
+    'r1'
+    'r2'
+    'r4'
+};
+labels_all = [labels; labels_ramp; labels_Q];
+lab = ["Sawtooth" "Ramp" "Flat" "$\mu_{SawT}$" "$\mu_{Ramp}$" "$\mu_{Flat}$"]
+mean_ST   = mean(OP_ST,1);
+mean_Q    = mean(OP_Q,1);
+mean_ramp = mean(OP_ramp,1);
+% =======================================================\==
+% PLOTTING
+% =========================================================
+
+figure;
+
+hold on
+plot(0,0,"r-", ...
+        'LineWidth', 2, ...
+        'MarkerSize', 6)
+plot(0,0,"b-", ...
+        'LineWidth', 2, ...
+        'MarkerSize', 6)
+plot(0,0,"k-", ...
+        'LineWidth', 2, ...
+        'MarkerSize', 6)
+
+plot( t, mean_ST, ...
+    'ro', ...
+    'LineWidth',2, ...
+    'MarkerSize',6);
+
+plot(t, mean_ramp,'bs', 'LineWidth',2,'MarkerSize',6);
+
+plot(t, mean_Q, ...
+    'k^', ...
+    'LineWidth',2, ...
+    'MarkerSize',6);
+
+
+for i = 1:size(OP_ST,1)
+
+    plot( ...
+        t, ...
+        OP_ST(i,:), ...
+        'r-', ...
+        'LineWidth', 2, ...
+        'MarkerSize', 6);
+
+end
+
+
+
+for i = 1:size(OP_ramp,1)
+
+    plot( ...
+        t, ...
+        OP_ramp(i,:), ...
+        'b-', ...
+        'LineWidth', 2, ...
+        'MarkerSize', 6);
+
+end
+
+for i = 1:size(OP_Q,1)
+
+    plot( ...
+        t, ...
+        OP_Q(i,:), ...
+        'k-', ...
+        'LineWidth', 2, ...
+        'MarkerSize', 6);
+
+end
+
+hold off
+
+% =========================================================
+% AXES + LEGEND
+% =========================================================
+
+xlabel('Time after confluency (h)', ...
+    'FontSize', 18);
+
+ylabel('AOP', ...
+    'FontSize', 18);
+
+legend(lab, ...
+    'Location','northwest', 'Interpreter','latex');
+grid on
+% Optional limits
+ylim([0.4 1]);
+
+set(gca, ...
+    'FontSize',16, ...
+    'LineWidth',2, ...
+    'Box','on', ...
+    'FontName','Times');
+
+set(gcf,'Color','white');
+
+% =========================================================
+% SAVE FIGURE
+% =========================================================
+
+% SVG (vector graphics)
+savename = ...
+        "OP_" + "ST" + ".svg";
+
+saveas(gcf, savename)
+% MATLAB figure
+savefig('OP_plot.fig');
+
+fprintf('Finished.\n');
