@@ -1,0 +1,120 @@
+clear
+clc
+close all
+
+%% Loading Images
+dat = 260202;
+files=dir('Unsorted data\260202 - Before H tops\*.tif');
+
+N = length(files);
+Pix_to_mm = 4/1972; %mm/pix
+%% --- Step 1: Load & crop FIRST image manually ---
+midfile = round(N/2);
+img = imread(strcat(files(midfile).folder,'\',files(midfile).name));
+
+figure
+imshow(img)
+%title('Crop region of interest')
+h = drawrectangle;      % interactive crop
+wait(h)
+cropRect = round(h.Position);   % [x y width height]
+close
+N=300;
+ch=1; %Choice for Video and Image
+if ch==1
+v = VideoWriter(sprintf("circle_fit_1_%g.avi",title));
+v.FrameRate = 10;   % adjust as needed
+open(v);
+R = zeros(N,1);
+kappa = zeros(N,1);
+end
+for i=295:N
+
+    img = imread(strcat(files(i).folder,'\',files(i).name));
+
+    Icrop = imcrop(img, cropRect);
+
+    BW = imbinarize(Icrop(:,:,1),0.3);
+
+    % Clean binary image
+    % BW = bwareaopen(BW, 200);
+    % BW = imfill(BW,'holes');
+
+    B = bwboundaries(BW);
+    edge_val=B{1,1};
+    nRows = size(Icrop,1);
+    nCols = size(Icrop,2);
+
+    mask = edge_val(:,1) > 1 & edge_val(:,1) < nRows & ...
+        edge_val(:,2) > 1 & edge_val(:,2) < nCols;
+
+    edge_val = edge_val(mask,:);
+
+
+
+    x = edge_val(:,2);   % columns
+    y = edge_val(:,1);   % rows
+
+    A = [2*x, 2*y, ones(size(x))];
+    b = x.^2 + y.^2;
+
+    params = A \ b;
+
+    a = params(1);   % center x
+    b0 = params(2);  % center y
+    R(i) = sqrt(params(3) + a^2 + b0^2); % Circle Radius
+    kappa(i) = 1 / (R(i)*Pix_to_mm); % Curvature
+  % xc0 = mean(x);
+  %   yc0 = mean(y);
+  %   R0  = mean(sqrt((x-xc0).^2 + (y-yc0).^2));
+  %   p0  = [xc0 yc0 R0];
+  % 
+  %      costfun = @(p) sqrt((x-p(1)).^2 + (y-p(2)).^2) - p(3);
+  %   opts = optimoptions('lsqnonlin','Display','off');
+  %   p = lsqnonlin(costfun, p0, [], [], opts);
+  % 
+  %   a  = p(1);
+  %   b0 = p(2);
+  %   R(i) = p(3);
+
+    theta = linspace(0,2*pi,400);
+
+    if ch==1
+    figure("Visible","off")
+    imagesc(BW);
+    hold on
+    for k=1:length(edge_val(:,1))
+        plot(edge_val(k,2),edge_val(k,1),'rx');
+    end
+    xc = a + R(i)*cos(theta);
+    yc = b0 + R(i)*sin(theta);
+
+    hold on
+    plot(x, y, 'r.')
+    plot(xc, yc, 'b-', 'LineWidth', 2)
+    ylim([0,cropRect(4)])
+    xlim([0,cropRect(3)])
+    title("This is the title")
+    frame = getframe(gcf);
+    writeVideo(v, frame);
+    clf;
+    end
+    if mod(i,10)==0
+    fprintf("Frame %g of %g \n",i ,N )
+    end
+end
+
+if ch==1
+close(v);
+end
+
+%%
+figure
+plot(kappa,'LineWidth',1.5)
+xlabel('Frame')
+ylabel('Curvature (rad/mm)')
+grid on
+savefig(sprintf("Estimated curvature vs frame %g",title))
+
+
+save('curvature_results.mat','R','kappa')
