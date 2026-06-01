@@ -1,0 +1,188 @@
+clc;
+clear all;
+close all;
+red=1;
+% Loop over xy = 1:4
+for xy = 1:4
+    if xy==3
+        continue
+    end
+    % Load file
+
+    nameoffile = sprintf('Table_t268_xy%d.csv', xy);
+
+    data = readtable(nameoffile);
+
+    b = 0.0072;
+    corr_l = 1/b;
+
+    grid_sz = 60;      % grid size in px
+    res_um = 0.26;     % resolution in um
+
+    px_window_size = corr_l/(res_um*grid_sz);
+
+    % Extract data
+
+    ang1 = data.Orientation;
+    X1 = data.X;
+    Y1 = data.Y;
+
+    % Build orientation matrices
+
+    loc1 = find(data.X == max(data.X));
+
+    col = loc1(1);
+    row = length(data.X)/col;
+
+    clear ang X Y
+
+    for i = 0:row-1
+
+        temp  = ang1(1+i*col:(i+1)*col);
+        temp1 = X1(1+i*col:(i+1)*col);
+        temp2 = Y1(1+i*col:(i+1)*col);
+
+        ang(i+1,:) = temp';
+        X(i+1,:)   = temp1';
+        Y(i+1,:)   = temp2';
+
+    end
+
+    % Calculate order parameter
+
+    order_para = zeros(row,col);
+
+    slide_window = floor(px_window_size/2);
+
+    ang_padded = padarray(ang, ...
+        [slide_window, slide_window], ...
+        'symmetric');
+
+    for i = 1:row
+
+        for j = 1:col
+
+            ang_window = ang_padded( ...
+                i:i+2*slide_window, ...
+                j:j+2*slide_window);
+
+            cos2thetha = cosd(ang_window).^2;
+            sin2thetha = sind(ang_window).^2;
+
+            sin_cos_thetha = ...
+                sind(ang_window).*cosd(ang_window);
+
+            Qxx = mean(cos2thetha(:));
+            Qyy = mean(sin2thetha(:));
+            Qxy = mean(sin_cos_thetha(:));
+
+            Q = [Qxx-0.5, Qxy;
+                 Qxy,     Qyy-0.5];
+
+            [eigenvectors, eigenvalues1] = eig(Q);
+
+            eigenvalues = diag(eigenvalues1);
+
+            [S, max_idx] = max(eigenvalues);
+
+            director = eigenvectors(:, max_idx);
+
+            order_para(i,j) = 2*S;
+
+        end
+    end
+    edge_px = 200;
+    
+    % Convert image pixels -> OP grid indices
+    edge_grid = ceil(edge_px / grid_sz);
+    
+    % Crop away outer region
+    inner_OP = order_para( ...
+        edge_grid+1:end-edge_grid, ...
+        edge_grid+1:end-edge_grid);
+    
+    % Average only inner region
+    avg_OP = mean(inner_OP(:));
+    % Plotting
+
+    figure('units','normalized','outerposition',[0 0 1 1])
+
+    imagesc(X(1,:), Y(:,1)', order_para)
+
+    axis square;
+    axis off;
+
+    c = colorbar;
+    c.FontSize = 30;
+
+    clim([0,1])
+    axis image;
+    
+    set(gca,'XTick',[]);
+    set(gca,'YTick',[]);
+    
+    box on
+    
+    ax = gca;
+    
+    ax.LineWidth = 3;
+    ax.XColor = 'black';
+    ax.YColor = 'black';
+    
+    set(gca,'FontName',"Times")
+    set(gca,'Color','white')
+    
+    c = colorbar;
+    c.FontSize = 30;
+    c.Color = 'black';
+    
+    clim([0,1])
+    
+    set(gcf,'Color','white');
+
+    set(gca, "FontName", "Times")
+
+    set(gca,'LooseInset', ...
+        max(get(gca,'TightInset'),0.02));
+
+    hold on
+
+    % Add red circle
+    % 300 px from ALL edges
+    if red==1
+    xMin = min(X(:));
+    xMax = max(X(:));
+
+    yMin = min(Y(:));
+    yMax = max(Y(:));
+
+    margin = 300;
+
+    circleX = xMin + margin;
+    circleY = yMin + margin;
+
+    circleDiameter = ...
+        min(xMax-xMin, yMax-yMin) - 2*margin;
+
+    rectangle( ...
+        'Position', ...
+        [circleX, circleY, ...
+         circleDiameter, circleDiameter], ...
+        'Curvature',[1 1], ...
+        'EdgeColor','r', ...
+        'LineWidth',4);
+
+    hold off
+    end
+    % Save SVG
+
+    savename = ...
+        "OP_" + erase(nameoffile, ".csv") + "_" + avg_OP + ".svg";
+
+    saveas(gcf, savename)
+
+    close(gcf)
+
+    fprintf('Finished xy=%d\n', xy);
+
+end
